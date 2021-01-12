@@ -17,4 +17,4 @@
 (4) AlphaVantage
 (5) SimFin
 (6) Damodaran
-(8) ....
+(8) Free Economic Data from (1) Quandl etc.
