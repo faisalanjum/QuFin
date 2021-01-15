@@ -2,6 +2,6 @@ qenv/
 .idea/
 config.py
 __pycache__/
-Notes
+Miscellaneous/Notes
 /alembic/*
 alembic.ini
