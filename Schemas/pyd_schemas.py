@@ -21,16 +21,18 @@ class User(UserBase):
         orm_mode = True
 
 class SymbolBase(BaseModel):
-    name: str
+
     ticker: str
+    name: str
+    figi: str
+    compositeFigi: str
     exchCode: str
     marketSector: str
     securityType: str
     securityType2: str
+    securityDescription: str
     shareClassFigi: str
     currency: str
-    status_ID: int
-    uniqueID: str
 
 class Symbol(SymbolBase):
     id: int
