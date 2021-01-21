@@ -19,7 +19,7 @@ class OpenFigi:
 
         return response.json()
 
-    # This function works when we pass this the result from map_jobs (when we pass only one ticker)
+    # This function works when we pass this the result from map_jobs (to which we pass a ticker at a time)
     # Returns dataframe where compositeFIGI = FIGI and exchCode == 'US'
     def get_figi(self, jobs):
         job_results = self.map_jobs(jobs)
