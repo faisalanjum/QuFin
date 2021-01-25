@@ -16,7 +16,6 @@ engine = create_engine(config.DATABASE_URL)
 # sqa_models.Base.metadata.drop_all(engine)
 sqa_models.Base.metadata.create_all(engine)
 
-
 SessionLocal = sessionmaker(bind=engine)
 
 # Dependency

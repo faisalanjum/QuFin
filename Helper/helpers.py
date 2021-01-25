@@ -21,3 +21,6 @@ def object_as_dict(obj):
 
 def remove_dupe_dicts(l):
     return [dict(t) for t in {tuple(d.items()) for d in l }]
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))

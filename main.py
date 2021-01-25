@@ -22,7 +22,7 @@ from Views import SymbolController
 #     if db_user:
 #         raise HTTPException(status_code=400, detail="Email already registered")
 #     return db_util.create_user(db=db, user=user)
-#
+
 # # Create Symbols
 # @app.post("/symbol/", response_model=pyd_schemas.Symbol)
 # def create_symbol(symbol: pyd_schemas.SymbolBase, db: Session = Depends(db_util.get_db)):
@@ -59,19 +59,28 @@ from Views import SymbolController
 #     if db_symbol:
 #         raise HTTPException(status_code=400, detail="CompFigi already exists")
 #     return db_util.create_company(db=db, symbol=company)
+#
+#
+# def populate_symbol():
+#
+#     sym_obj=SymbolController.SymbolController()
+#     dict = sym_obj.GetAssetsFromVendors("Alpaca")
+#
+#     # print("dict",dict)
+#
+#     ticker_list, exchange_list, name_list = sym_obj.get_lists(dict)
+#
+#     # print("ticker_list",ticker_list)
+#     sym_obj.create_dictionary(ticker_list, name_list)
+#
+# # populate_symbol()
 
 
 def populate_symbol():
 
     sym_obj=SymbolController.SymbolController()
-    dict = sym_obj.bulkInsertFromProviders("Alpaca")
-
-    # print("dict",dict)
-
-    ticker_list, exchange_list, name_list = sym_obj.get_lists(dict)
-
-    # print("ticker_list",ticker_list)
-    sym_obj.create_dictionary(ticker_list, name_list)
+    # sym_obj.PopulateSymbol("Alpaca")
+    sym_obj.PopulateSymbol("Polygon")
 
 populate_symbol()
 
@@ -103,27 +112,32 @@ from Models.sqa_models import Company, Symbol, Forex
 # session.close()
 
 
-session = SessionLocal()
-one = session.query(Symbol).filter(Symbol.status_id == 'True').all()
-for on in one:
+# session = SessionLocal()
+# one = session.query(Symbol).filter(Symbol.status_id == 'True').all()
+# for on in one:
+#
+#     som = session.query(Forex).filter(Forex.compositeFigi == on.figi).first()
+#
+#     if(som):
+#         pass
+#     else:
+#
+#         new_forex = Forex(
+#             ticker = on.ticker,
+#             name = on.name,
+#             compositeFigi = on.figi)
+#
+#         try:
+#             print(on.figi)
+#             session.add(new_forex)
+#             session.commit()
+#
+#         except:
+#             pass
+#
+# session.close()
 
-    som = session.query(Forex).filter(Forex.compositeFigi == on.figi).first()
 
-    if(som):
-        pass
-    else:
 
-        new_forex = Forex(
-            ticker = on.ticker,
-            name = on.name,
-            compositeFigi = on.figi)
 
-        try:
-            print(on.figi)
-            session.add(new_forex)
-            session.commit()
-
-        except:
-            pass
-
-session.close()
+# print(list_symbols_db)

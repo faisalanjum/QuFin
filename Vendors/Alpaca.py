@@ -2,43 +2,25 @@ import alpaca_trade_api as Api
 import config as Config
 import pandas as pd
 
-"""
-|--------------------------------------------------------------------------------------------|                                           |
-| THIS CLASS IMPLEMENTS THE WRAPPER FOR ALPACA DATA PROVIDER IMPLEMENTED USING ALPACA API....|                                              |
-|--------------------------------------------------------------------------------------------|
-"""
-
 class Alpaca:
 
     def __init__(self):
 
-        # class properties
         self.key = Config.ALPACA_API_KEY
         self.secret = Config.ALPACA_SECRET_KEY
         self.url = Config.ALPACA_API_URL
-        """
-        ------------------------------------------------------------------------------------------------------------
-                          Create connection with the alpaca server
-        ------------------------------------------------------------------------------------------------------------
-        """
+
     def connect(self):
         try:
             self.connection = Api.REST(self.key, self.secret, self.url)
-            print("Connection Established With Alpaca")
+            print("Connection established With Alpaca")
         except Exception as e:
-            print("Error Connecting to Provider")
+            print("Error Connecting to Alpaca")
             raise e
-        """
-        ------------------------------------------------------------------------------------------------------------
-            Retreives The List Of Stocks With Their Symbols,Name and Other Details 
-        ------------------------------------------------------------------------------------------------------------
-        """
+
     def getAssetList(self):
-        ''' Send a collection of stock symbols to the API in order to obtain the associated prices.
-            Returns: Dict of Stocks With List'''
 
         self.connect()
-
         try:
             account_info = self.connection.get_account()
             if account_info.status == "ACTIVE":
@@ -48,11 +30,6 @@ class Alpaca:
         except Exception as e:
             raise e
 
-        """
-        ------------------------------------------------------------------------------------------------------------
-            Get Stock_prices
-        ------------------------------------------------------------------------------------------------------------
-        """
     def getStockPrices(self, symbols=None, timeframe='1D', start=None, end=None, limit=None, output_as=None):
         '''
             Send an collection of stock symbols to the API in order to obtain theassociated prices.
