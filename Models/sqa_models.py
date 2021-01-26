@@ -2,6 +2,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Date,DateTime, \
     UniqueConstraint, ForeignKey, Sequence, Text, Boolean, Float, Enum, BigInteger
 
+from sqlalchemy.dialects.postgresql import ARRAY
+
 from sqlalchemy.dialects import postgresql
 
 from sqlalchemy.sql import func
@@ -43,37 +45,32 @@ class Symbol(Base):
     __tablename__="symbol"
     # __table_args__ = tuple([UniqueConstraint('figi')])
 
-    figi = Column("figi", String, primary_key=True)
+    uniqueID = Column("uniqueID", String, primary_key=True) #Internal
 
-    ticker = Column("ticker", String)
-    name =Column("name",String)
+    # figi = Column("figi", String)                   # from Openfigi, Polygons
+    ticker = Column("ticker", String)               # from Polygons and Alpaca
+    name =Column("name",String)                     # from Openfigi, Polygons and Alpaca
 
+    compositeFigi = Column("compositeFigi",String)  #OpenFigi
+    shareClassFigi = Column("shareClassFigi", String)#OpenFigi
 
-    compositeFigi = Column("compositeFigi",String)
-    shareClassFigi = Column("shareClassFigi", String)
-    exchCode = Column("exchCode", String)
+    exchCode = Column("exchCode", String)           #OpenFigi
+    exSymbol = Column("exSymbol", String)        #from Polygon
+    primaryExch = Column("primaryExch", String)  #from Polygon
 
-    marketSector = Column("marketSector", String)
-    securityType= Column("securityType",String)
-    securityType2 = Column("securityType2",String)
-    securityDescription = Column("securityDescription", String)
-    uniqueIDFutOpt = Column(String)
+    securityType= Column("securityType",String)     #OpenFigi
+    securityType2 = Column("securityType2",String)  #OpenFigi
+    market = Column("market", String)            #from Polygon
+    type = Column("type", String)                #from Polygon
 
-    status_id = Column("status_id", Boolean)
+    internal_code = Column("internal_code", Integer)   #Internal
 
-    #from Alpaca
-    name1 = Column("name1", String)
-    exchange1 = Column("exchange1", String)
+    # uniqueIDFutOpt = Column(String)                 #OpenFigi
+    marketSector = Column("marketSector", String)    #OPENFIGI & 'sector' from Polygon Ticker Details
 
-    #from Polygon
-    name2 = Column("name2", String)
-    market = Column("market", String)
-    type = Column("type", String)
-    currency = Column("currency", String)
-    country = Column("country", String)
-    active = Column("active", String)
-    exSymbol = Column("exSymbol", String)
-    primaryExch = Column("primaryExch", String)
+    currency = Column("currency", String)        #from Polygon
+    country = Column("country", String)          #from Polygon
+    active = Column("active", String)            #from Polygon
 
     created_at=Column("created_at",DateTime(timezone=True),server_default=func.now())
     updated_at=Column("updated_at",DateTime(timezone=True) , onupdate=func.now())
@@ -98,11 +95,10 @@ class Company(Base):
     sector = Column("sector", String)
     url = Column("url", String)
     description = Column("description", String)
+    tags = Column("tags",ARRAY(String))
+    similar = Column("similar",ARRAY(String))
 
-    tags = Column("tags",postgresql.ARRAY(String))
-    similar = Column("similar",postgresql.ARRAY(String))
-
-    compositeFigi = Column(String, ForeignKey('symbol.figi',
+    compositeFigi = Column(String, ForeignKey('symbol.uniqueID',
                                               onupdate='CASCADE',
                                               ondelete='CASCADE'), primary_key=True)
     symbol = relationship("Symbol", backref=backref("company", uselist=False))
@@ -118,9 +114,9 @@ class Forex(Base):
     # __table_args__ = tuple([UniqueConstraint('compositeFigi')])
     # id=Column("id",Integer,primary_key=True,autoincrement=True)
 
-    ticker = Column("ticker", String)
+    # ticker = Column("ticker", String)
     name =Column("name",String)
-    compositeFigi = Column(String, ForeignKey('symbol.figi',
+    ticker = Column(String, ForeignKey('symbol.uniqueID',
                                               onupdate='CASCADE',
                                               ondelete='CASCADE'), primary_key=True)
     # compositeFigi = Column("compositeFigi",String)
@@ -150,9 +146,9 @@ class StockPriceDaily(Base):
     __tablename__="stockpricedaily"
     id=Column(Integer,primary_key=True,autoincrement=True)
 
-    __table_args__ = tuple([UniqueConstraint('vendor_id', 'figi', "datetime")])
+    __table_args__ = tuple([UniqueConstraint('vendor_id', 'uniqueID', "datetime")])
 
-    figi = Column(String, ForeignKey('symbol.figi'))
+    uniqueID = Column(String, ForeignKey('symbol.uniqueID'))
     vendor_id = Column(Integer, ForeignKey('vendor.id'))
     company_id = Column(String, ForeignKey('company.compositeFigi'))
 
@@ -201,12 +197,12 @@ class StockAdjustment(Base):
 
 class VendorSymbol(Base):
     __tablename__="vendorsymbol"
-    __table_args__ = tuple([UniqueConstraint('vendor_id', 'figi')])
+    __table_args__ = tuple([UniqueConstraint('vendor_id', 'uniqueID')])
 
     id=Column("id",Integer,primary_key=True,autoincrement=True)
     vendor_symbol = Column("vendor_symbol", String)
 
-    figi = Column(String, ForeignKey('symbol.figi'))
+    uniqueID = Column(String, ForeignKey('symbol.uniqueID'))
     vendor_id = Column(Integer, ForeignKey('vendor.id'))
 
     symbol = relationship("Symbol", backref="vendorsymbol")

@@ -32,7 +32,7 @@ def get_db():
 #     email = "nanu@gmail.com",
 #     alpaca_secret="787",
 #     alpaca_key="98712")
-#
+
 # # utility functions to retrieve data
 # def get_user(db: Session, user_id: int):
 #     return db.query(sqa_models.User).filter(sqa_models.User.id == user_id).first()
