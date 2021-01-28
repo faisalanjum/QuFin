@@ -83,8 +83,8 @@ class Polygon:
         self.TICKERDATA.append(pd.DataFrame(data["tickers"]))
         pages = math.ceil(int(data['count']) / int(data['perPage']))
 
-        # urls = [Config.POLYGON_TICKERS_URL.format(page, Config.API_KEY_SETH) for page in range(2, 50)]
-        urls = [Config.POLYGON_TICKERS_URL.format(page, Config.API_KEY_SETH) for page in range(2, pages)]
+        urls = [Config.POLYGON_TICKERS_URL.format(page, Config.API_KEY_SETH) for page in range(2, 50)]
+        # urls = [Config.POLYGON_TICKERS_URL.format(page, Config.API_KEY_SETH) for page in range(2, pages)]
 
         chunked_url = list(self.divide_chunks(urls, 10))
         processes = [threading.Thread(target=self.get_tickers, args=(urls,), daemon=True) for urls in chunked_url]

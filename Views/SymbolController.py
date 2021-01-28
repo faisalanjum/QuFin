@@ -130,7 +130,7 @@ class SymbolController():
 
         # NEED TO CHECK IF ALL TICKERS ARE BEING LOADED - not done yet
         ticker_detail_df = pd.DataFrame.from_dict(tickerdata).set_index('symbol')
-        print("---ticker_detail_df (DATA) %s Minutes ---" % ((time.time() - start_time) / 60))
+        print("---Tickers (DATA) %s Minutes ---" % ((time.time() - start_time) / 60))
 
         # Postfix "_d" to column names of "ticker_detail_df"
         new_column_names = [n + "_d" for n in list(ticker_detail_df.columns)]
@@ -233,6 +233,7 @@ class SymbolController():
         #Add a new row with figi = compfigi where don't find compfigi = figi for all tickers
         extra_rows = final_polygon_stock.copy()
         extra_rows = extra_rows[extra_rows['internal_code'] == 0] #finds values where internal_code = 0
+        extra_rows = extra_rows[extra_rows['active'] == True] # Pick only Active Tickers
         extra_rows = extra_rows.drop_duplicates(subset=['compositeFigi']) #remove duplicate values of cfigi
 
         #Remove those rows from extra_rows which have 'compositeFigi' equal to figi/uniqueID of final_polygon_stock
@@ -254,8 +255,12 @@ class SymbolController():
         for i in range(len(dict_new_rows)):
             extra_index.append(dict_new_rows[i]['uniqueID'])
         extra_rows_df.index = extra_index
+
+        # print("extra_rows_df - Before [col]", extra_rows_df)
+
         extra_rows_df = extra_rows_df[col]
-        # extra_rows_df.set_index('uniqueID', inplace=True)
+        # print("extra_rows_df - After [col]", extra_rows_df)
+
         print("extra_rows_df",extra_rows_df)
         # print("final_polygon_stock", final_polygon_stock)
         # print("extra_rows_df.columns", extra_rows_df.columns)
@@ -282,27 +287,41 @@ class SymbolController():
 
         #NEED TO UPDATE "extra_to_be_updated" in the database
 
-        print("final_polygon_stock.index",final_polygon_stock.index)
-        print("list_symbols_db",list_symbols_db)
+        # print("final_polygon_stock.index",final_polygon_stock.index)
+        # print("list_symbols_db",list_symbols_db)
         print("extra_rows_df.index",extra_rows_df.index)
 
         final_polygon_exist = final_polygon_stock.loc[exist_in_db]
         final_polygon_new = final_polygon_stock.loc[not_in_db]
         extra_rows_df_new = extra_rows_df.loc[extra_to_be_inserted]
 
-        # #Pull data from VendorSymbol
-        # session=self.Session()
-        # vendorsymbol_db = session.query(VendorSymbol).all()
-        # list_uniqueID = []
-        # list_vendorID = []
-        # for row in vendorsymbol_db:
-        #     list_uniqueID.append(row.uniqueID)
-        #     list_vendorID.append(row.vendor_id)
-        #
-        # # For VendorSymbol Table
-        # dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": '',
-        #         "vendor_id": 2
-        #         }for index, row in final_polygon_stock.iterrows()]
+        #Pull data from VendorSymbol
+        session=self.Session()
+        vendorsymbol_db = session.query(VendorSymbol).all()
+        list_uniqueID = []
+        list_vendorID = []
+        for row in vendorsymbol_db:
+            list_uniqueID.append(row.uniqueID)
+            list_vendorID.append(row.vendor_id)
+
+        # For VendorSymbol Table
+        dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": '',
+                "vendor_id": 2
+                }for index, row in final_polygon_stock.iterrows()]
+
+        df_vendorsymbol_poly = pd.DataFrame.from_dict(dict_vendorsymbol_poly)
+        vendorsymbol_index = []
+        for i in range(len(dict_vendorsymbol_poly)):
+            vendorsymbol_index.append(dict_vendorsymbol_poly[i]['uniqueID'])
+        df_vendorsymbol_poly.index = vendorsymbol_index
+
+        print("df_vendorsymbol_poly -Before conditions", df_vendorsymbol_poly)
+
+        vs_cond1 = [x for x in df_vendorsymbol_poly.index if (x not in list_uniqueID)]
+        vs_cond2 = [x for x in df_vendorsymbol_poly['vendor_id'] if x != 2]
+        df_vendorsymbol_poly = df_vendorsymbol_poly.loc[vs_cond1]
+
+        print("df_vendorsymbol_poly -After conditions", df_vendorsymbol_poly)
 
         try:
             session = self.Session()
@@ -311,7 +330,7 @@ class SymbolController():
 
             session.bulk_insert_mappings(Symbol, final_polygon_new.to_dict(orient='records'))
             session.bulk_insert_mappings(Symbol, extra_rows_df_new.to_dict(orient='records'))
-            # session.bulk_insert_mappings(VendorSymbol, dict_vendorsymbol_poly)
+            session.bulk_insert_mappings(VendorSymbol, df_vendorsymbol_poly.to_dict(orient='records'))
             print("Inserted tickers", len(final_polygon_new))
             print("Inserted Extra tickers", len(extra_rows_df_new))
 
