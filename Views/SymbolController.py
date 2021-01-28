@@ -115,14 +115,20 @@ class SymbolController():
         for code in list_codes:
             df.loc[df['codes'].notnull(), code] = df.loc[df['codes'].notnull(), 'codes'].apply(lambda x: x.get(code))
 
-        symbols = list(df.index.values)
+        #Seperate out "STOCKS","INDICES","FX","CRYPTO"
+        df_stocks =     df[df['market'] == 'STOCKS']
+        df_indices =    df[df['market'] == 'INDICES']
+        df_fx =         df[df['market'] == 'FX']
+        df_crypto =     df[df['market'] == 'CRYPTO']
+
+        stock_symbols = list(df_stocks.index.values)
 
         start_time = time.time()
 
         #Function to fetch Ticker Details from Polygon
-        tickerdata = polygon.details(symbols)
+        tickerdata = polygon.details(stock_symbols)
 
-        # #CHECK IF ALL TICKERS ARE BEING LOADED
+        # NEED TO CHECK IF ALL TICKERS ARE BEING LOADED - not done yet
         ticker_detail_df = pd.DataFrame.from_dict(tickerdata).set_index('symbol')
         print("---ticker_detail_df (DATA) %s Minutes ---" % ((time.time() - start_time) / 60))
 
@@ -131,12 +137,12 @@ class SymbolController():
         ticker_detail_df.columns = new_column_names
 
         # Combine both dfs - (1) Tickers(df) & (2) Ticker_Detail(ticker_detail_df)
-        final_df = pd.concat([df, ticker_detail_df], axis=1,join='outer',sort =False).rename_axis('ticker')
+        final_df_stock = pd.concat([df_stocks, ticker_detail_df], axis=1,join='outer',sort =False).rename_axis('ticker')
 
         # Seperate final_df into 2: One with Figi's and other without
-        final_df_wo_figi = final_df.copy()
+        final_df_wo_figi = final_df_stock.copy()
         final_df_wo_figi = final_df_wo_figi[pd.isnull(final_df_wo_figi['figi'])]
-        final_df_w_figi = final_df[pd.notnull(final_df['figi'])]
+        final_df_w_figi = final_df_stock[pd.notnull(final_df_stock['figi'])]
         final_df_w_figi.reset_index(level=0, inplace=True)
         final_df_w_figi = final_df_w_figi.set_index('figi')
 
@@ -176,66 +182,127 @@ class SymbolController():
         Outer_join.rename(columns={'name_x': 'name'}, inplace=True)
         Outer_join.index.name = final_df_w_figi.index.name
 
-        final_polygon = pd.concat([final_df_w_figi, Outer_join])
-
-        # print(final_polygon)
+        final_polygon_stock = pd.concat([final_df_w_figi, Outer_join])
 
         # drop & rename columns
-        final_polygon['figi'] = final_polygon.index
-        final_polygon.rename(columns={'cfigi': 'compositeFigi'}, inplace=True)
-        final_polygon.rename(columns={'scfigi': 'shareClassFigi'}, inplace=True)
+        final_polygon_stock['uniqueID'] = final_polygon_stock.index
+        final_polygon_stock.rename(columns={'cfigi': 'compositeFigi'}, inplace=True)
+        final_polygon_stock.rename(columns={'scfigi': 'shareClassFigi'}, inplace=True)
+
+        #Compares Figi (which is uniqueID incase of Companies)  = CompFIGI
+        # Issue is this will also overwrite with 1 after we've changed internal_code to say 2 when we create a new row for figi=compfigi
+        final_polygon_stock['internal_code'] = [
+            1 if (row['uniqueID'] == row['compositeFigi']) else 0 for index, row in
+            final_polygon_stock.iterrows()]
 
         # fill these later using openfigi
-        final_polygon['securityType2'] = ''
-        final_polygon['securityDescription'] = None
-        final_polygon['exchCode'] = None
-        final_polygon['name1'] = None
-        final_polygon['exchange1'] = None
-        final_polygon['name2'] = None
-
-        final_polygon['status_id'] = (final_polygon['compositeFigi'] == final_polygon['figi'])
+        final_polygon_stock['securityType2'] = ''
+        final_polygon_stock['securityDescription'] = None
+        final_polygon_stock['exchCode'] = None
 
         # create new columns - similar & tags
-        final_polygon.rename(columns={'sector_d': 'marketSector'}, inplace=True)
-        final_polygon.rename(columns={'type_d': 'securityType'}, inplace=True)
-        final_polygon.rename(columns={'country_d': 'country'}, inplace=True)
-        final_polygon.rename(columns={'exchangeSymbol_d': 'exSymbol'}, inplace=True)
-        final_polygon.rename(columns={'similar_d': 'similar'}, inplace=True)
-        final_polygon.rename(columns={'tags_d': 'tags'}, inplace=True)
+        final_polygon_stock.rename(columns={'sector_d': 'marketSector'}, inplace=True)
+        final_polygon_stock.rename(columns={'type_d': 'securityType'}, inplace=True)
+        final_polygon_stock.rename(columns={'country_d': 'country'}, inplace=True)
+        final_polygon_stock.rename(columns={'exchangeSymbol_d': 'exSymbol'}, inplace=True)
+        final_polygon_stock.rename(columns={'similar_d': 'similar'}, inplace=True)
+        final_polygon_stock.rename(columns={'tags_d': 'tags'}, inplace=True)
 
-        final_polygon2 = final_polygon.copy()
+        final_polygon2 = final_polygon_stock.copy()
 
-        col = ['figi', 'ticker', "name", "compositeFigi", "shareClassFigi", "exchCode", "marketSector", "securityType",
+        col = ['uniqueID', 'ticker', "name", "compositeFigi", "shareClassFigi", "exchCode", "marketSector", "securityType",
                "securityType2",
                "securityDescription",
-               "status_id", "name1", "exchange1", "name2", "market", "type", "currency",
+               "internal_code","market", "type", "currency",
                "country",
                "active",
                "exSymbol", "primaryExch"
             # ,"similar","tags"
                ]
 
-        # col1 = ["similar","tags"]
-        duplicates =  len(final_polygon) - len(final_polygon.drop_duplicates(inplace=False, subset='figi'))
+        duplicates =  len(final_polygon_stock) - len(final_polygon_stock.drop_duplicates(inplace=False, subset='uniqueID'))
+        final_polygon_stock = final_polygon_stock[col]
+        final_polygon_stock.drop_duplicates(inplace=True, subset='uniqueID')
 
-        final_polygon = final_polygon[col]
-        final_polygon.drop_duplicates(inplace=True, subset='figi')
+        #Simply removing where figi is available but compfigi is not - later try to fetch these as well
+        not_present = ['', np.nan, None]
+        print("final_polygon_stock before removing cfigi",len(final_polygon_stock))
+        final_polygon_stock = final_polygon_stock.loc[~(final_polygon_stock['compositeFigi'].isin(not_present))]
+        print("final_polygon_stock after removing cfigi", len(final_polygon_stock))
 
-        # array_df = final_polygon2[col1]
+        #Add a new row with figi = compfigi where don't find compfigi = figi for all tickers
+        extra_rows = final_polygon_stock.copy()
+        extra_rows = extra_rows[extra_rows['internal_code'] == 0] #finds values where internal_code = 0
+        extra_rows = extra_rows.drop_duplicates(subset=['compositeFigi']) #remove duplicate values of cfigi
+
+        #Remove those rows from extra_rows which have 'compositeFigi' equal to figi/uniqueID of final_polygon_stock
+        extra_rows = extra_rows.loc[~extra_rows['compositeFigi'].isin(final_polygon_stock['uniqueID'].values)]
+
+        dict_new_rows = [{
+                'uniqueID': row['compositeFigi'],'ticker': row['ticker'],'name': row['name'],
+                'compositeFigi': row['compositeFigi'],
+                'shareClassFigi': row['shareClassFigi'],
+                'exchCode': '','exSymbol': row['exSymbol'],'primaryExch': row['primaryExch'],
+                'securityType': row['securityType'],'securityType2': row['securityType2'],
+                'securityDescription': '',
+                'market': row['market'],'type': row['type'],'marketSector': row['marketSector'],
+                'currency': row['currency'],'country': row['country'],'active': row['active'],
+                'internal_code': 2}for index, row in extra_rows.iterrows()]
+
+        extra_rows_df = pd.DataFrame.from_dict(dict_new_rows)
+        extra_index = []
+        for i in range(len(dict_new_rows)):
+            extra_index.append(dict_new_rows[i]['uniqueID'])
+        extra_rows_df.index = extra_index
+        extra_rows_df = extra_rows_df[col]
+        # extra_rows_df.set_index('uniqueID', inplace=True)
+        print("extra_rows_df",extra_rows_df)
+        # print("final_polygon_stock", final_polygon_stock)
+        # print("extra_rows_df.columns", extra_rows_df.columns)
+        # print("final_polygon_stock.columns", final_polygon_stock.columns)
+
+        # final_polygon_stock = pd.concat([final_polygon_stock, extra_rows_df ], axis=0)
 
         #Pull symbols from database
         session=self.Session()
         symbols_db = session.query(Symbol).all()
         list_symbols_db = []
         for symbol in symbols_db:
-            list_symbols_db.append(symbol.figi)
+            list_symbols_db.append(symbol.uniqueID)
 
-        exist_in_db = [x for x in final_polygon.index if (x in list_symbols_db)]
-        not_in_db = [x for x in final_polygon.index if (x not in list_symbols_db)]
+        extra_symbols = session.query(Symbol).filter_by(internal_code=2).all()
+        list_extra_symbols_db = []
+        for symbol in extra_symbols:
+            list_extra_symbols_db.append(symbol.uniqueID)
 
-        final_polygon_exist = final_polygon.loc[exist_in_db]
-        final_polygon_new = final_polygon.loc[not_in_db]
+        exist_in_db = [x for x in final_polygon_stock.index if (x in list_symbols_db)]
+        not_in_db = [x for x in final_polygon_stock.index if (x not in list_symbols_db)]
+        extra_to_be_inserted = [x for x in extra_rows_df.index if (x not in list_symbols_db)]
+        extra_to_be_updated = list_extra_symbols_db
 
+        #NEED TO UPDATE "extra_to_be_updated" in the database
+
+        print("final_polygon_stock.index",final_polygon_stock.index)
+        print("list_symbols_db",list_symbols_db)
+        print("extra_rows_df.index",extra_rows_df.index)
+
+        final_polygon_exist = final_polygon_stock.loc[exist_in_db]
+        final_polygon_new = final_polygon_stock.loc[not_in_db]
+        extra_rows_df_new = extra_rows_df.loc[extra_to_be_inserted]
+
+        # #Pull data from VendorSymbol
+        # session=self.Session()
+        # vendorsymbol_db = session.query(VendorSymbol).all()
+        # list_uniqueID = []
+        # list_vendorID = []
+        # for row in vendorsymbol_db:
+        #     list_uniqueID.append(row.uniqueID)
+        #     list_vendorID.append(row.vendor_id)
+        #
+        # # For VendorSymbol Table
+        # dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": '',
+        #         "vendor_id": 2
+        #         }for index, row in final_polygon_stock.iterrows()]
 
         try:
             session = self.Session()
@@ -243,9 +310,10 @@ class SymbolController():
             print("Updated tickers",len(final_polygon_exist))
 
             session.bulk_insert_mappings(Symbol, final_polygon_new.to_dict(orient='records'))
+            session.bulk_insert_mappings(Symbol, extra_rows_df_new.to_dict(orient='records'))
+            # session.bulk_insert_mappings(VendorSymbol, dict_vendorsymbol_poly)
             print("Inserted tickers", len(final_polygon_new))
-
-            # session.bulk_update_mappings(Symbol, array_df.to_dict(orient='records'))
+            print("Inserted Extra tickers", len(extra_rows_df_new))
 
 
         except Exception as e:
@@ -254,24 +322,19 @@ class SymbolController():
         finally:
             print("..")
 
-            print("Ticker Detail",df)
+            print("Stocks df",df_stocks)
             print("df1",df1)
-            print("Total Tickers:", len(df))
+            print("Total Stocks:", len(df_stocks))
             print("Tickers with details:", len(ticker_detail_df))
-            print("Final Df:", len(final_df))
+            print("Final Df of Stocks:", len(final_df_stock))
             print("final_df_w_figi:", len(final_df_w_figi))
             print("final_df_wo_figi:", len(final_df_wo_figi))
             print("Figi available for final_df_wo_figi:", len(df1))
             print("Outer Join:", len(Outer_join))
-            print("final_polygon:", len(final_polygon))
+            print("final_polygon:", len(final_polygon_stock))
             print("duplicates",duplicates)
             print("final_polygon_new:", len(final_polygon_new))
             print("final_polygon_exist:", len(final_polygon_exist))
-
-
-
-
-
 
 
         session.commit()

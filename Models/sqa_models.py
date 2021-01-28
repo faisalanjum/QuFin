@@ -130,6 +130,8 @@ class VendorNames(enum.Enum):
     SimFin = 'Sim Fin'
     AlphaVantage = 'Alpha Vantage'
     Quandl = 'Quandl'
+    Internal = 'Internal'
+
 
 class Vendor(Base):
     __tablename__="vendor"
@@ -218,6 +220,7 @@ InteractiveBrokers = Vendor(name='InteractiveBrokers')
 SimFin = Vendor(name='SimFin')
 AlphaVantage = Vendor(name='AlphaVantage')
 Quandl = Vendor(name='Quandl')
+Internal = Vendor(name='Internal')
 
 @listens_for(Vendor.__table__, 'after_create')
 def insert_initial_values(self,*args, **kwargs):
@@ -234,5 +237,6 @@ def insert_initial_values(self,*args, **kwargs):
     session.add(SimFin)
     session.add(AlphaVantage)
     session.add(Quandl)
+    session.add(Internal)
     session.commit()
 

@@ -80,12 +80,11 @@ def populate_symbol():
 
     sym_obj=SymbolController.SymbolController()
     sym_obj.PopulateSymbol("Alpaca")
-    # sym_obj.PopulateSymbol("Polygon")
+    sym_obj.PopulateSymbol("Polygon")
 
 populate_symbol()
 
 from Models.sqa_models import Company, Symbol, Forex
-
 
 # new_company = Company(
 #     ticker = 'PACK1',

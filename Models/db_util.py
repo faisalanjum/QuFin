@@ -10,7 +10,7 @@ from Models.sqa_models import Symbol, User, Company, Forex, StockPriceDaily, Sto
 
 engine = create_engine(config.DATABASE_URL)
 
-# Vendor.__table__.drop(engine)
+# Symbol.__table__.drop(engine)
 # StockAdjustment.__table__.create(engine)
 
 # sqa_models.Base.metadata.drop_all(engine)
