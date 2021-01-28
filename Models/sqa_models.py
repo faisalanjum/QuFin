@@ -113,13 +113,14 @@ class Forex(Base):
 
     # __table_args__ = tuple([UniqueConstraint('compositeFigi')])
     # id=Column("id",Integer,primary_key=True,autoincrement=True)
-
-    # ticker = Column("ticker", String)
     name =Column("name",String)
-    ticker = Column(String, ForeignKey('symbol.uniqueID',
+    currencyName = Column("currencyName", String)
+    currency = Column("currency", String)
+    baseName = Column("baseName", String)
+    base = Column("base", String)
+    ticker = Column("ticker",String, ForeignKey('symbol.uniqueID',
                                               onupdate='CASCADE',
                                               ondelete='CASCADE'), primary_key=True)
-    # compositeFigi = Column("compositeFigi",String)
     symbol = relationship("Symbol", backref=backref("forex", uselist=False))
 
 

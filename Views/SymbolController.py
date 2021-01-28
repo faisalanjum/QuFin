@@ -4,7 +4,7 @@ from Helper.helpers import remove_dupe_dicts, chunker
 from Vendors.Alpaca import Alpaca
 from Vendors.Polygon import Polygon
 from Vendors.OpenFigi import OpenFigi
-from Models.sqa_models import Symbol, VendorSymbol, Company
+from Models.sqa_models import Symbol, VendorSymbol, Company, Forex
 import config, collections, time
 import pandas as pd
 import numpy as np
@@ -120,6 +120,28 @@ class SymbolController():
         df_indices =    df[df['market'] == 'INDICES']
         df_fx =         df[df['market'] == 'FX']
         df_crypto =     df[df['market'] == 'CRYPTO']
+
+        fx_codes = ['currencyName', 'currency', 'baseName', 'base']
+        for code in fx_codes:
+            df_fx.loc[df_fx['attrs'].notnull(), code] = df_fx.loc[df_fx['attrs'].notnull(), 'attrs'].apply(lambda x: x.get(code))
+
+        df_fx['ticker'] = df_fx.index
+        df_fx['uniqueID'] = df_fx.index
+        df_fx.index.name = 'uniqueID'
+        df_fx.rename(columns={'locale': 'country'}, inplace=True)
+        df_fx['vendor_id'] = 2
+        df_fx['vendor_symbol'] = df_fx['ticker']
+
+        fx_cols1 = ['uniqueID', 'ticker', 'name', 'primaryExch', 'type', 'currency', 'market', 'country']
+        fx_cols2 = ['ticker', 'name', 'currencyName', 'currency', 'baseName', 'base']  # make 'uniqueID' as index
+        fx_cols3 = ['uniqueID','vendor_id']  # make 'uniqueID' as index
+        df_fx_sym = df_fx[fx_cols1] # For Symbol Table
+        df_fx_tbl = df_fx[fx_cols2] # For Forex Table
+        df_fx_vs = df_fx[fx_cols3]  # For VendorSymbol Table
+
+            #Indices and Crypto to do similarly as Fx - remember "attr" dictionary is different for all
+        # df_fx.set_index('ticker', inplace=True)
+
 
         stock_symbols = list(df_stocks.index.values)
 
@@ -299,29 +321,27 @@ class SymbolController():
         session=self.Session()
         vendorsymbol_db = session.query(VendorSymbol).all()
         list_uniqueID = []
-        list_vendorID = []
+        vendorsymbol_index = []
+
+        #Check if a symbol has already been added in vendorsymbol for Polygon - Append a list with uniqueID if vendor_id = 2
         for row in vendorsymbol_db:
-            list_uniqueID.append(row.uniqueID)
-            list_vendorID.append(row.vendor_id)
+            if (row.vendor_id == 2):
+                list_uniqueID.append(row.uniqueID)
 
         # For VendorSymbol Table
         dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": '',
                 "vendor_id": 2
                 }for index, row in final_polygon_stock.iterrows()]
-
         df_vendorsymbol_poly = pd.DataFrame.from_dict(dict_vendorsymbol_poly)
-        vendorsymbol_index = []
         for i in range(len(dict_vendorsymbol_poly)):
             vendorsymbol_index.append(dict_vendorsymbol_poly[i]['uniqueID'])
         df_vendorsymbol_poly.index = vendorsymbol_index
 
         print("df_vendorsymbol_poly -Before conditions", df_vendorsymbol_poly)
-
-        vs_cond1 = [x for x in df_vendorsymbol_poly.index if (x not in list_uniqueID)]
-        vs_cond2 = [x for x in df_vendorsymbol_poly['vendor_id'] if x != 2]
-        df_vendorsymbol_poly = df_vendorsymbol_poly.loc[vs_cond1]
-
+        vs_cond = [x for x in df_vendorsymbol_poly.index if (x not in list_uniqueID)]
+        df_vendorsymbol_poly = df_vendorsymbol_poly.loc[vs_cond]
         print("df_vendorsymbol_poly -After conditions", df_vendorsymbol_poly)
+        # Need to write code to update vendorsymbol
 
         try:
             session = self.Session()
@@ -330,17 +350,18 @@ class SymbolController():
 
             session.bulk_insert_mappings(Symbol, final_polygon_new.to_dict(orient='records'))
             session.bulk_insert_mappings(Symbol, extra_rows_df_new.to_dict(orient='records'))
-            session.bulk_insert_mappings(VendorSymbol, df_vendorsymbol_poly.to_dict(orient='records'))
+            session.bulk_insert_mappings(Symbol, df_fx_sym.to_dict(orient='records'))
+
+            session.bulk_insert_mappings(Forex, df_fx_tbl.to_dict(orient='records'))
+            session.bulk_insert_mappings(VendorSymbol, df_fx_vs.to_dict(orient='records'))
+
             print("Inserted tickers", len(final_polygon_new))
             print("Inserted Extra tickers", len(extra_rows_df_new))
-
 
         except Exception as e:
             print(f"There was an Error inserting data. Error:{e}")
             session.rollback()
         finally:
-            print("..")
-
             print("Stocks df",df_stocks)
             print("df1",df1)
             print("Total Stocks:", len(df_stocks))
@@ -355,6 +376,9 @@ class SymbolController():
             print("final_polygon_new:", len(final_polygon_new))
             print("final_polygon_exist:", len(final_polygon_exist))
 
+            print("df_indices", df_indices)
+            print("df_fx", df_fx)
+            print("df_crypto", df_crypto)
 
         session.commit()
 
