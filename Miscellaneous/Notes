@@ -1,0 +1,30 @@
+
+
+Queries:
+1. Done - How does the updated_at column gets updated in all tables like in User table?
+2. Not able to use async and await as its throwing error. Did you use it as I just see async command but not await?
+
+
+
+
+Update Tables:
+1. Symbol: Update table once in few days (cronjob)
+2. Vendors_Symbol: Updates for every symbol added/removed.
+
+@Sundeep
+1. Please give specific character lengths and types for Table Columns so as to make performance faster.
+2. Create functions for code wherever possible
+3. I am Naming columns and then renaming them again
+    - check if there is a cleaner/better way to achieve the same end goal.
+4. Make single line comments just like I did
+5. Check everything under all scenarios
+6. Create a list (errors_list) which includes all tickers that weren't included in our database from all vendors
+7. A function to identify symbols??
+8. Change Variable Names to make them smaller, descriptive, logical
+9. #NEED TO UPDATE "extra_to_be_updated" in the database
+10. Please check if "internal_code" column in Symbol Table is not be overwritten by 1 when its 2 or vice versa
+11. Incase we want to link stocks to Indices - how can we do that?
+12. Need to write code to update vendorsymbol
+13. # **important -- when adding polygon's assets to company assets - Need to concatenate "final_polygon_stock" to extra_rows_df "in df_company_tbl" but its not populating when I concatenate these both
+14. IMPORTANT - TO CHECK IF extra_tickers(internal_code = 2 is being added to "vendorsymbol" table?
+15. In vendor_symbol table, we also need to account for all the new rows in Symbol table that we created (internal_code = 2) - our internal vendor_id is 7
