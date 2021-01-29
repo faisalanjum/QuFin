@@ -1,10 +1,10 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, and_, or_
 from sqlalchemy.orm import sessionmaker
 from Helper.helpers import remove_dupe_dicts, chunker
 from Vendors.Alpaca import Alpaca
 from Vendors.Polygon import Polygon
 from Vendors.OpenFigi import OpenFigi
-from Models.sqa_models import Symbol, VendorSymbol, Company, Forex
+from Models.sqa_models import Symbol, VendorSymbol, Company, Forex, Indices, Crypto
 import config, collections, time
 import pandas as pd
 import numpy as np
@@ -69,7 +69,7 @@ class SymbolController():
                 "vendor_id": 1
                 }for index, row in df.iterrows()]
 
-        #Check if tickers are "Stocks" - Can change these later
+        #Check if tickers are "Stocks" - May change some symbols later
         stock_type_list = ["ETP", "ADR", "Common Stock", "REIT", "MLP", "Closed-End Fund", "NY Reg Shrs", "Unit",
                            "Right", "Tracking Stk", "Ltd Part", "Royalty Trst"]
         df_stock = df.loc[(df['securityType'].isin(stock_type_list))]
@@ -122,8 +122,18 @@ class SymbolController():
         df_crypto =     df[df['market'] == 'CRYPTO']
 
         fx_codes = ['currencyName', 'currency', 'baseName', 'base']
-        for code in fx_codes:
+        for code in fx_codes:  #attrs will give error if you run testing line in get_tickers_threads as it requires all data to be populated first
             df_fx.loc[df_fx['attrs'].notnull(), code] = df_fx.loc[df_fx['attrs'].notnull(), 'attrs'].apply(lambda x: x.get(code))
+
+        idx_codes = ['holiday', 'assettype', 'entitlement', 'disseminationfreq', 'dataset', 'schedule', 'brand',
+                     'series']
+        for code in idx_codes:
+            df_indices.loc[df_indices['attrs'].notnull(), code] = df_indices.loc[df_indices['attrs'].notnull(), 'attrs'].apply(lambda x: x.get(code))
+
+        crpt_codes = ['currencyName', 'currency', 'baseName', 'base']
+        for code in crpt_codes:
+            df_crypto.loc[df_crypto['attrs'].notnull(), code] = df_crypto.loc[df_crypto['attrs'].notnull(), 'attrs'].apply(lambda x: x.get(code))
+
 
         df_fx['ticker'] = df_fx.index
         df_fx['uniqueID'] = df_fx.index
@@ -132,6 +142,20 @@ class SymbolController():
         df_fx['vendor_id'] = 2
         df_fx['vendor_symbol'] = df_fx['ticker']
 
+        df_indices['ticker'] = df_indices.index
+        df_indices['uniqueID'] = df_indices.index
+        df_indices.index.name = 'uniqueID'
+        df_indices.rename(columns={'locale': 'country'}, inplace=True)
+        df_indices['vendor_id'] = 2
+        df_indices['vendor_symbol'] = df_indices['ticker']
+
+        df_crypto['ticker'] = df_crypto.index
+        df_crypto['uniqueID'] = df_crypto.index
+        df_crypto.index.name = 'uniqueID'
+        df_crypto.rename(columns={'locale': 'country'}, inplace=True)
+        df_crypto['vendor_id'] = 2
+        df_crypto['vendor_symbol'] = df_crypto['ticker']
+
         fx_cols1 = ['uniqueID', 'ticker', 'name', 'primaryExch', 'type', 'currency', 'market', 'country']
         fx_cols2 = ['ticker', 'name', 'currencyName', 'currency', 'baseName', 'base']  # make 'uniqueID' as index
         fx_cols3 = ['uniqueID','vendor_id']  # make 'uniqueID' as index
@@ -139,9 +163,20 @@ class SymbolController():
         df_fx_tbl = df_fx[fx_cols2] # For Forex Table
         df_fx_vs = df_fx[fx_cols3]  # For VendorSymbol Table
 
+        idx_cols1 = ['uniqueID', 'ticker', 'name', 'primaryExch', 'type', 'currency', 'market', 'country']
+        idx_cols2 = ['ticker', 'name', 'holiday','assettype','entitlement','disseminationfreq','dataset','schedule','brand','series']  # make 'uniqueID' as index
+        idx_cols3 = ['uniqueID','vendor_id']  # make 'uniqueID' as index
+        df_idx_sym = df_indices[idx_cols1] # For Symbol Table
+        df_idx_tbl = df_indices[idx_cols2] # For Indices Table
+        df_idx_vs = df_indices[idx_cols3]  # For VendorSymbol Table
+
+        #crpto and FX have same columns
+        df_cry_sym = df_crypto[fx_cols1] # For Symbol Table
+        df_cry_tbl = df_crypto[fx_cols2] # For Forex Table
+        df_cry_vs = df_crypto[fx_cols3]  # For VendorSymbol Table
+
             #Indices and Crypto to do similarly as Fx - remember "attr" dictionary is different for all
         # df_fx.set_index('ticker', inplace=True)
-
 
         stock_symbols = list(df_stocks.index.values)
 
@@ -152,7 +187,7 @@ class SymbolController():
 
         # NEED TO CHECK IF ALL TICKERS ARE BEING LOADED - not done yet
         ticker_detail_df = pd.DataFrame.from_dict(tickerdata).set_index('symbol')
-        print("---Tickers (DATA) %s Minutes ---" % ((time.time() - start_time) / 60))
+        print("---Ticker Details  %s Minutes ---" % ((time.time() - start_time) / 60))
 
         # Postfix "_d" to column names of "ticker_detail_df"
         new_column_names = [n + "_d" for n in list(ticker_detail_df.columns)]
@@ -283,7 +318,7 @@ class SymbolController():
         extra_rows_df = extra_rows_df[col]
         # print("extra_rows_df - After [col]", extra_rows_df)
 
-        print("extra_rows_df",extra_rows_df)
+
         # print("final_polygon_stock", final_polygon_stock)
         # print("extra_rows_df.columns", extra_rows_df.columns)
         # print("final_polygon_stock.columns", final_polygon_stock.columns)
@@ -311,7 +346,7 @@ class SymbolController():
 
         # print("final_polygon_stock.index",final_polygon_stock.index)
         # print("list_symbols_db",list_symbols_db)
-        print("extra_rows_df.index",extra_rows_df.index)
+        # print("extra_rows_df.index",extra_rows_df.index)
 
         final_polygon_exist = final_polygon_stock.loc[exist_in_db]
         final_polygon_new = final_polygon_stock.loc[not_in_db]
@@ -319,29 +354,82 @@ class SymbolController():
 
         #Pull data from VendorSymbol
         session=self.Session()
-        vendorsymbol_db = session.query(VendorSymbol).all()
+        vendorsymbol_db = session.query(VendorSymbol).filter((VendorSymbol.vendor_id == 2) | (VendorSymbol.vendor_id == 7 )).all()
         list_uniqueID = []
+        for row in vendorsymbol_db:
+                list_uniqueID.append(row.uniqueID)
+
         vendorsymbol_index = []
 
         #Check if a symbol has already been added in vendorsymbol for Polygon - Append a list with uniqueID if vendor_id = 2
-        for row in vendorsymbol_db:
-            if (row.vendor_id == 2):
-                list_uniqueID.append(row.uniqueID)
 
         # For VendorSymbol Table
-        dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": '',
-                "vendor_id": 2
+        dict_vendorsymbol_poly = [{"uniqueID": row['uniqueID'],"vendor_symbol": row['ticker'],"vendor_id": 2
                 }for index, row in final_polygon_stock.iterrows()]
         df_vendorsymbol_poly = pd.DataFrame.from_dict(dict_vendorsymbol_poly)
         for i in range(len(dict_vendorsymbol_poly)):
             vendorsymbol_index.append(dict_vendorsymbol_poly[i]['uniqueID'])
         df_vendorsymbol_poly.index = vendorsymbol_index
 
-        print("df_vendorsymbol_poly -Before conditions", df_vendorsymbol_poly)
+        # print("df_vendorsymbol_poly -Before conditions", df_vendorsymbol_poly)
         vs_cond = [x for x in df_vendorsymbol_poly.index if (x not in list_uniqueID)]
         df_vendorsymbol_poly = df_vendorsymbol_poly.loc[vs_cond]
-        print("df_vendorsymbol_poly -After conditions", df_vendorsymbol_poly)
-        # Need to write code to update vendorsymbol
+
+        # Need to write code to update vendorsymbol **IMPORTANT - TO CHECK IF extra_tickers(internal_code = 2 is being added to "vendorsymbol" table?
+
+        # For Company Table - Polygon
+        session = self.Session()
+        company_db = session.query(Company).all()
+        list_company = []
+        for row in company_db:
+                list_company.append(row.compositeFigi)
+
+        print("list_company",list_company)
+
+        final_polygon_stock = final_polygon_stock[extra_rows_df.columns.values]
+
+        print("final_polygon_stock['internal_code']", final_polygon_stock['internal_code'])
+
+        # **** IMPORTANT need to concatenate "final_polygon_stock" to extra_rows_df below in df_company_tbl -  not able to do
+        # df_company_tbl = pd.concat([extra_rows_df] , axis=0)
+
+        df_company_tbl = pd.concat([extra_rows_df,final_polygon_stock], axis=0)
+
+        #to only pick tickers where ('internal_code'] == 1 i.e compFIGI = FIGI) or 'internal_code'] == 2 - where we created a new row with compfigi = figi)
+        df_company_tbl = df_company_tbl.loc[((df_company_tbl['internal_code'] == 1) | (df_company_tbl['internal_code'] == 2))]
+
+        print("final_polygon_stock['internal_code']",final_polygon_stock['internal_code'])
+        print("df_company_tbl['internal_code']", df_company_tbl['internal_code'])
+        print("extra_rows_df['internal_code']", extra_rows_df['internal_code'])
+        print("extra_rows_df", extra_rows_df)
+        print("df_company_tbl",df_company_tbl)
+
+        # df_company_tbl['uniqueID'] = df_company_tbl.index
+        df_dict_company_tbl = [{'uniqueID': row['uniqueID'],'name': row['name'],'ticker': row['ticker'],
+                            'sector': row['marketSector'],
+                            'description': row['securityDescription'],
+                            'compositeFigi': row['compositeFigi']
+                                }for index, row in df_company_tbl.iterrows()]
+
+        df_company_tbl_ = pd.DataFrame.from_dict(df_dict_company_tbl)
+
+        print("df_dict_company_tbl",df_dict_company_tbl)
+        print("df_company_tbl_",df_company_tbl_)
+        poly_company_index = []
+        for i in range(len(df_dict_company_tbl)):
+            poly_company_index.append(df_dict_company_tbl[i]['uniqueID'])
+        df_company_tbl_.index = poly_company_index
+
+        print("df_company_tbl_.index",df_company_tbl_.index)
+
+        print("df_company_tbl_", df_company_tbl_)
+        # df_company_tbl_.set_index('ticker', inplace = True)
+        company_cond = [x for x in df_company_tbl_.index if (x not in list_company)]
+
+        print("company_cond",company_cond)
+
+
+        df_company_tbl_ = df_company_tbl_.loc[company_cond]
 
         try:
             session = self.Session()
@@ -351,9 +439,20 @@ class SymbolController():
             session.bulk_insert_mappings(Symbol, final_polygon_new.to_dict(orient='records'))
             session.bulk_insert_mappings(Symbol, extra_rows_df_new.to_dict(orient='records'))
             session.bulk_insert_mappings(Symbol, df_fx_sym.to_dict(orient='records'))
+            session.bulk_insert_mappings(Symbol, df_idx_sym.to_dict(orient='records'))
+            session.bulk_insert_mappings(Symbol, df_cry_sym.to_dict(orient='records'))
+
+            session.bulk_insert_mappings(Company, df_company_tbl_.to_dict(orient='records'))
 
             session.bulk_insert_mappings(Forex, df_fx_tbl.to_dict(orient='records'))
+            session.bulk_insert_mappings(Indices, df_idx_tbl.to_dict(orient='records'))
+            session.bulk_insert_mappings(Crypto, df_cry_tbl.to_dict(orient='records'))
+
+            session.bulk_insert_mappings(VendorSymbol, df_vendorsymbol_poly.to_dict(orient='records'))
+
             session.bulk_insert_mappings(VendorSymbol, df_fx_vs.to_dict(orient='records'))
+            session.bulk_insert_mappings(VendorSymbol, df_idx_vs.to_dict(orient='records'))
+            session.bulk_insert_mappings(VendorSymbol, df_cry_vs.to_dict(orient='records'))
 
             print("Inserted tickers", len(final_polygon_new))
             print("Inserted Extra tickers", len(extra_rows_df_new))
@@ -377,8 +476,9 @@ class SymbolController():
             print("final_polygon_exist:", len(final_polygon_exist))
 
             print("df_indices", df_indices)
-            print("df_fx", df_fx)
             print("df_crypto", df_crypto)
+            print("df_vendorsymbol_poly -After conditions", df_vendorsymbol_poly)
+            print("df_company_tbl_", df_company_tbl_)
 
         session.commit()
 

@@ -107,7 +107,7 @@ class Company(Base):
     updated_at=Column("updated_at",DateTime(timezone=True) , onupdate=func.now())
 
 
-# To do - other asset classes like (1) Forex, (2) Futures, (3) Options, (4) Bonds, (5) Macro, (6) Crypto
+# To do - other asset classes like (2) Futures, (3) Options, (4) Bonds, (5) Macro
 class Forex(Base):
     __tablename__="forex"
 
@@ -123,6 +123,38 @@ class Forex(Base):
                                               ondelete='CASCADE'), primary_key=True)
     symbol = relationship("Symbol", backref=backref("forex", uselist=False))
 
+
+class Indices(Base):
+    __tablename__="indices"
+
+    name =Column("name",String)
+    holiday = Column("holiday ", String)
+    assettype = Column("assettype ", String)
+    entitlement = Column("entitlement ", String)
+    disseminationfreq = Column("disseminationfreq ", String)
+    dataset = Column("dataset ", String)
+    schedule = Column("schedule ", String)
+    brand = Column("brand ", String)
+    series = Column("series ", String)
+    ticker = Column("ticker",String, ForeignKey('symbol.uniqueID',
+                                              onupdate='CASCADE',
+                                              ondelete='CASCADE'), primary_key=True)
+    symbol = relationship("Symbol", backref=backref("indices", uselist=False))
+
+class Crypto(Base):
+    __tablename__="crypto"
+
+    # __table_args__ = tuple([UniqueConstraint('compositeFigi')])
+    # id=Column("id",Integer,primary_key=True,autoincrement=True)
+    name =Column("name",String)
+    currencyName = Column("currencyName", String)
+    currency = Column("currency", String)
+    baseName = Column("baseName", String)
+    base = Column("base", String)
+    ticker = Column("ticker",String, ForeignKey('symbol.uniqueID',
+                                              onupdate='CASCADE',
+                                              ondelete='CASCADE'), primary_key=True)
+    symbol = relationship("Symbol", backref=backref("crypto", uselist=False))
 
 class VendorNames(enum.Enum):
     Alpaca = 'Alpaca'
