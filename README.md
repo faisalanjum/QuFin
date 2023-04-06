@@ -21,11 +21,11 @@ To install QuFin, clone the repository from GitHub and install the dependencies 
 - cd QuFin
 - pip install -r requirements.txt
 
-##Microservice Architecture
+## Microservice Architecture
 QuFin uses a microservice architecture for scalability and modularity. The project is split into multiple microservices, each responsible for a specific aspect of the data processing pipeline. These microservices communicate with each other over a message bus, allowing them to be developed and deployed independently.
 
-##Raspberry Pi Compatibility
+## Raspberry Pi Compatibility
 QuFin is designed to be compatible with Raspberry Pi devices, making it suitable for low-power, embedded use cases. The project has been tested on Raspberry Pi ARM Model and can be easily installed and run on such devices.
 
-##Credits
+## Credits
 QuFin was created and maintained by Faisal Anjum.
